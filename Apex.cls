@@ -62,6 +62,8 @@ public without sharing class PotentialDuplicateController {
                     master.put(field, duplicateLeadValues.get(field));
                 }
             }
+            master.lead.Potential_Duplicate__c = false;
+            master.Merge_Process_Done__c = true;
             // Merge accounts into master
             Database.MergeResult mergeResult = Database.merge(master, duplicate, false);
 

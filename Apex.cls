@@ -28,8 +28,9 @@ public without sharing class PotentialDuplicateController {
                 duplicateLeads = [
                         SELECT Id, Name, Title, Company, Phone, Email, Status, Potential_Duplicate__c
                         FROM Lead
-                        WHERE Id IN :duplicateLeadIds AND Id != :recordId
+                        WHERE Id IN :duplicateLeadIds
                 ];
+                //AND Id != :recordId
             }
         }
         return duplicateLeads;
@@ -40,6 +41,7 @@ public without sharing class PotentialDuplicateController {
         if (recordId != null) {
             Lead lead = [SELECT Id, Name, Potential_Duplicate__c FROM Lead WHERE Id = :recordId];
             lead.Potential_Duplicate__c = false;
+            lead.Merge_Process_Done__c = true;
             update lead;
         }
     }

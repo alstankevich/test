@@ -122,7 +122,8 @@ global without sharing class LeadRoundRobinBatch implements Database.Batchable<s
         Map<Id, User> usersMap = new Map<Id, User>([
                 SELECT Id, Type__c                    //TBD
                 FROM User
-                WHERE Type__c IN :ownerTypes          //TBD
+                WHERE Type__c IN :ownerTypes   //TBD
+                AND IsActive = true
         ]);
         return usersMap;
     }

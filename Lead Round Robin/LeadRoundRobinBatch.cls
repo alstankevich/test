@@ -17,8 +17,10 @@ global without sharing class LeadRoundRobinBatch implements Database.Batchable<s
         Map<String, List<String>> mapping = getOwnersMapping(new List<String>(leadTypeToLeadsMap.keySet()));
         Set<String> ownerTypes = getOwnerTypes(mapping);
         Map<Id, User> usersMap = getUsersMap(ownerTypes);
+        if(usersMap.keySet().isEmpty()) return;
         AggregateResult[] groupedLeads = getGroupedLeads(usersMap);
         Map<String, List<RRUser>> leadTypeToUsers = getLeadTypeToUsers(groupedLeads, usersMap, mapping);
+        if(leadTypeToUsers.keySet().isEmpty()) return;
         roundRobinLeads(leadsToRoundRobin, leadTypeToUsers);
 
         update leadsToRoundRobin;

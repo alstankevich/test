@@ -8,69 +8,75 @@ global without sharing class LeadRoundRobinBatch implements Database.Batchable<s
 
     global Database.QueryLocator start(Database.BatchableContext BC) {
         List<Id> leadIds = this.leadsIdsToProcess;
-        String query = 'SELECT Id, Status, Type__c FROM Lead WHERE Id IN :leadIds';
+        String query = 'SELECT Id, Status, Lead_Owner_Type__c FROM Lead WHERE Id IN :leadIds';
         return Database.getQueryLocator(query);
     }
 
     global void execute(Database.BatchableContext BC, List<Lead> leadsToRoundRobin) {
-        Map<String, List<Lead>> leadTypeToLeadsMap = getLeadTypeToLeadsMap(leadsToRoundRobin);
-        Map<String, List<String>> mapping = getOwnersMapping(new List<String>(leadTypeToLeadsMap.keySet()));
-        Set<String> ownerTypes = getOwnerTypes(mapping);
+        Set<String> ownerTypes = getOwnerTypes(leadsToRoundRobin);
         Map<Id, User> usersMap = getUsersMap(ownerTypes);
         if(usersMap.keySet().isEmpty()) return;
         AggregateResult[] groupedLeads = getGroupedLeads(usersMap);
-        Map<String, List<RRUser>> leadTypeToUsers = getLeadTypeToUsers(groupedLeads, usersMap, mapping);
-        if(leadTypeToUsers.keySet().isEmpty()) return;
-        roundRobinLeads(leadsToRoundRobin, leadTypeToUsers);
+        Map<String, List<RRUser>> leadOwnerTypeToUsers = getLeadOwnerTypeToUsers(groupedLeads, usersMap);
+        if(leadOwnerTypeToUsers.keySet().isEmpty()) return;
+        roundRobinLeads(leadsToRoundRobin, leadOwnerTypeToUsers);
 
         update leadsToRoundRobin;
     }
 
-    private void roundRobinLeads(List<Lead> leadsToRoundRobin, Map<String, List<RRUser>> leadTypeToUsers) {
+    private Set<String> getOwnerTypes(List<Lead> leadsToRoundRobin) {
+        Set<String> ownerTypes = new Set<String>();
         for (Lead l : leadsToRoundRobin) {
-            System.debug(leadTypeToUsers);
-            System.debug(l.Type__c);
-            leadTypeToUsers.get(l.Type__c).sort(); //should be l.LOB
-            l.OwnerId = leadTypeToUsers.get(l.Type__c).get(0).ownerId;
+            if (l.Lead_Owner_Type__c != null) {
+                ownerTypes.add(l.Lead_Owner_Type__c);
+            }
+        }
+        return ownerTypes;
+    }
+
+    private void roundRobinLeads(List<Lead> leadsToRoundRobin, Map<String, List<RRUser>> leadOwnerTypeToUsers) {
+        for (Lead l : leadsToRoundRobin) {
+            if(l.Lead_Owner_Type__c != null){
+                leadOwnerTypeToUsers.get(l.Lead_Owner_Type__c).sort(); //should be l.LOB
+                l.OwnerId = leadOwnerTypeToUsers.get(l.Lead_Owner_Type__c).get(0).ownerId;
+            }
         }
     }
 
-    private Map<String, List<RRUser>> getLeadTypeToUsers(AggregateResult[] groupedLeads, Map<Id, User> usersMap, Map<String, List<String>> mapping) {
+    private Map<String, List<RRUser>> getLeadOwnerTypeToUsers(AggregateResult[] groupedLeads, Map<Id, User> usersMap) {
         Map<String, List<RRUser>> leadTypeToUsers = new Map<String, List<RRUser>>();
         System.debug(groupedLeads);
         for (AggregateResult ar : groupedLeads) {
             String userType = usersMap.get((Id) ar.get('OwnerId')).Type__c;  //TBD
-            String leadType = getLeadTypeByUserType(userType, mapping);
 
             RRUser usr = new RRUser(
                     (Id) ar.get('OwnerId'),
                     (Integer) ar.get('leadCount')
             );
 
-            if (leadTypeToUsers.containsKey(leadType)) {
-                leadTypeToUsers.get(leadType).add(usr);
+            if (leadTypeToUsers.containsKey(userType)) {
+                leadTypeToUsers.get(userType).add(usr);
             } else {
-                leadTypeToUsers.put(leadType, new List<RRUser>{
+                leadTypeToUsers.put(userType, new List<RRUser>{
                         usr
                 });
             }
         }
 
-        addUsersWithNoLeads(usersMap, leadTypeToUsers, mapping);
+        addUsersWithNoLeads(usersMap, leadTypeToUsers);
 
         return leadTypeToUsers;
     }
 
-    private void addUsersWithNoLeads(Map<Id, User> usersMap, Map<String, List<RRUser>> leadTypeToUsers, Map<String, List<String>> mapping) {
+    private void addUsersWithNoLeads(Map<Id, User> usersMap, Map<String, List<RRUser>> leadTypeToUsers) {
         for (Id usrId : usersMap.keySet()) {
             Boolean userAdded = isUserAdded(leadTypeToUsers, usrId);
             if (!userAdded) {
-                String leadType = getLeadTypeByUserType(usersMap.get(usrId).Type__c, mapping); //TBD
                 RRUser usr = new RRUser(usrId, 0);
-                if (leadTypeToUsers.containsKey(leadType)) {
-                    leadTypeToUsers.get(leadType).add(usr);
+                if (leadTypeToUsers.containsKey(usersMap.get(usrId).Type__c)) {
+                    leadTypeToUsers.get(usersMap.get(usrId).Type__c).add(usr);
                 } else {
-                    leadTypeToUsers.put(leadType, new List<RRUser>{
+                    leadTypeToUsers.put(usersMap.get(usrId).Type__c, new List<RRUser>{
                             usr
                     });
                 }
@@ -121,51 +127,7 @@ global without sharing class LeadRoundRobinBatch implements Database.Batchable<s
         return usersMap;
     }
 
-    private Set<String> getOwnerTypes(Map<String, List<String>> mapping) {
-        Set<String> ownerTypes = new Set<String>();
-        for (String key : mapping.keySet()) {
-            ownerTypes.addAll(mapping.get(key));
-        }
-        return ownerTypes;
-    }
-
-    private Map<String, List<Lead>> getLeadTypeToLeadsMap(List<Lead> leadsToRoundRobin) {
-        Map<String, List<Lead>> leadTypeToLeadsMap = new Map<String, List<Lead>>();
-        for (Lead l : leadsToRoundRobin) {
-            if (leadTypeToLeadsMap.containsKey(l.Type__c)) { //TBD
-                leadTypeToLeadsMap.get(l.Type__c).add(l); //TBD
-            } else {
-                leadTypeToLeadsMap.put(l.Type__c, new List<Lead>{l}); //TBD
-            }
-        }
-        return leadTypeToLeadsMap;
-    }
-
     global void finish(Database.BatchableContext BC) {
-    }
-
-    private static Map<String, List<String>> getOwnersMapping(List<String> lobs){
-        Map<String, List<String>> mapping = new Map<String, List<String>>();
-        List<RR_User_Type__mdt> mappingTypes = getMappingTypes(lobs);
-
-        for(RR_User_Type__mdt usrType : mappingTypes){
-            if(mapping.containsKey(usrType.RR_Lead_Type__r.Value__c)){
-                mapping.get(usrType.RR_Lead_Type__r.Value__c).add(usrType.Value__c);
-            }else{
-                mapping.put(usrType.RR_Lead_Type__r.Value__c, new List<String>{usrType.Value__c});
-            }
-        }
-
-        return mapping;
-    }
-
-    private static List<RR_User_Type__mdt> getMappingTypes(List<String> lobs) {
-        List<RR_User_Type__mdt> mappingTypes = [
-                SELECT Id, Value__c, RR_Lead_Type__r.Value__c
-                FROM RR_User_Type__mdt
-                WHERE RR_Lead_Type__r.Value__c IN :lobs
-        ];
-        return mappingTypes;
     }
 
     private class RRUser implements Comparable{

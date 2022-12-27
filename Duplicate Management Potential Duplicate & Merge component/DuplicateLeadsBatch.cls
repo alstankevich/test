@@ -1,6 +1,6 @@
 global without sharing class DuplicateLeadsBatch implements Database.Batchable<sObject> {
     global Database.QueryLocator start(Database.BatchableContext BC) {
-        String query = 'SELECT Id, OwnerId, Potential_Duplicate__c FROM Lead WHERE CreatedDate = TODAY AND Potential_Duplicate__c = false';
+        String query = 'SELECT Id, OwnerId, Potential_Duplicate__c FROM Lead WHERE CreatedDate = TODAY AND Potential_Duplicate__c = false AND Merge_Process_Done__c = false';
         return Database.getQueryLocator(query);
     }
 

@@ -1,6 +1,5 @@
 public without sharing class PotentialDuplicateController {
-
-    @AuraEnabled
+	@AuraEnabled
     public static List<Lead> getPotentialDuplicateLeads(Id recordId) {
         List<Lead> duplicateLeads = new List<Lead>();
         Set<Id> duplicateRecordSetIds = new Set<Id>();
@@ -28,7 +27,7 @@ public without sharing class PotentialDuplicateController {
                 duplicateLeads = [
                         SELECT Id, Name, Title, Company, Phone, Email, Status, Potential_Duplicate__c
                         FROM Lead
-                        WHERE Id IN :duplicateLeadIds
+                        WHERE Id IN :duplicateLeadIds 
                 ];
                 //AND Id != :recordId
             }
@@ -47,43 +46,46 @@ public without sharing class PotentialDuplicateController {
     }
 
     @AuraEnabled
-    public static void mergeLeadDuplicates(Id recordId, Id masterId) {
-        List<Lead> duplicates = getSObjectRecordByIdWithAllAvailableFields(Lead.class.getName(), recordId);
-        List<Lead> masterLeads = getSObjectRecordByIdWithAllAvailableFields(Lead.class.getName(), masterId);
+    public static void mergeLeadDuplicates(Id recordId, Id masterId, List<Lead> duplicateLeads) {
+
+        List<Lead> duplicatesLeads = getDuplicates(masterId, duplicateLeads);
+        Set<Id> duplicateLeadIds = getDuplicateLeadIds(duplicatesLeads);
+
+        List<Lead> duplicates = getSObjectRecordByIdWithAllAvailableFields(Lead.class.getName(), null, duplicateLeadIds);
+        List<Lead> masterLeads = getSObjectRecordByIdWithAllAvailableFields(Lead.class.getName(), masterId, null);
 
         if (!duplicates.isEmpty() && !masterLeads.isEmpty()) {
-            Lead duplicate = duplicates.get(0);
             Lead master = masterLeads.get(0);
 
-            Map<String, SObjectField> fields = SObjectType.Lead.fields.getMap();
-            Map<String, Object> duplicateLeadValues = duplicate.getPopulatedFieldsAsMap();
-            for (String field : duplicateLeadValues.keySet()) {
-                if (master.get(field) == null && fields.get(field).getDescribe().isUpdateable()) {
-                    master.put(field, duplicateLeadValues.get(field));
+            for(Lead duplicate : duplicates) {
+                Map<String, SObjectField> fields = SObjectType.Lead.fields.getMap();
+                Map<String, Object> duplicateLeadValues = duplicate.getPopulatedFieldsAsMap();
+                for (String field : duplicateLeadValues.keySet()) {
+                    if (master.get(field) == null && fields.get(field).getDescribe().isUpdateable()) {
+                        master.put(field, duplicateLeadValues.get(field));
+                    }
                 }
             }
-            master.lead.Potential_Duplicate__c = false;
-            master.Merge_Process_Done__c = true;
-            // Merge accounts into master
-            Database.MergeResult mergeResult = Database.merge(master, duplicate, false);
+            master.Potential_Duplicate__c = false;
+            //master.Merge_Process_Done__c = true;
+            List<Database.MergeResult> mergeResults = Database.merge(master, duplicatesLeads, false);
 
-            if (mergeResult.isSuccess()) {
-                // Get the master ID from the result and validate it
-                System.debug('Master record ID: ' + mergeResult.getId());
+            for(Database.MergeResult mergeResult : mergeResults){
+                if (mergeResult.isSuccess()) {
+                    System.debug('Master record ID: ' + mergeResult.getId());
 
-                // Get the IDs of the merged records and display them
-                List<Id> mergedIds = mergeResult.getMergedRecordIds();
-                System.debug('IDs of merged records: ' + mergedIds);
+                    List<Id> mergedIds = mergeResult.getMergedRecordIds();
+                    System.debug('IDs of merged records: ' + mergedIds);
 
-                // Get the ID of the re-parented record and validate that this the contact ID.
-                System.debug('Re-parented record ID: ' + mergeResult.getUpdatedRelatedIds());
-            } else {
-                String errorMessage = '';
-                for (Database.Error err : mergeResult.getErrors()) {
-                    errorMessage += errorMessage;
-                    System.debug(err.getMessage());
+                    System.debug('Re-parented record ID: ' + mergeResult.getUpdatedRelatedIds());
+                } else {
+                    String errorMessage = '';
+                    for (Database.Error err : mergeResult.getErrors()) {
+                        errorMessage += errorMessage;
+                        System.debug(err.getMessage());
+                    }
+                    throw new AuraHandledException('Something went wrong: ' + errorMessage);
                 }
-                throw new AuraHandledException('Something went wrong: ' + errorMessage);
             }
         } else {
             throw new AuraHandledException('Unfortunately, there was a problem. Please try again. ' +
@@ -92,7 +94,7 @@ public without sharing class PotentialDuplicateController {
     }
 
     @TestVisible
-    private static List<SObject> getSObjectRecordByIdWithAllAvailableFields(String objectAPIName, String recordId) {
+    private static List<SObject> getSObjectRecordByIdWithAllAvailableFields(String objectAPIName, String recordId, Set<Id> objectIds) {
         Map<String, Schema.SObjectType> schemaMap = Schema.getGlobalDescribe();
         Map<String, Schema.SObjectField> fieldMap = schemaMap.get(objectAPIName).getDescribe().fields.getMap();
         List<String> fieldsToQuery = new List<String>();
@@ -103,8 +105,31 @@ public without sharing class PotentialDuplicateController {
             }
         }
         soqlQuery += String.join(fieldsToQuery, ',');
-        soqlQuery += ' FROM ' + objectAPIName + ' WHERE Id = \'' + String.escapeSingleQuotes(recordId) + '\'';
+
+        if(objectIds != null){
+            soqlQuery += ' FROM ' + objectAPIName + ' WHERE Id IN :objectIds';
+        } else {
+            soqlQuery += ' FROM ' + objectAPIName + ' WHERE Id = \'' + String.escapeSingleQuotes(recordId) + '\'';
+        }
         List<SObject> records = Database.query(soqlQuery);
         return records;
+    }
+
+    private static List<Lead> getDuplicates(Id masterId, List<Lead> leads){
+        List<Lead> duplicates = new List<Lead>();
+        for (Lead lead : leads) {
+            if (lead.Id != masterId) {
+                duplicates.add(lead);
+            }
+        }
+        return duplicates;
+    }
+
+    private static Set<Id> getDuplicateLeadIds(List<Lead> leads){
+        Set<Id> leadIds = new Set<Id>();
+        for (Lead lead : leads) {
+            leadIds.add(lead.Id);
+        }
+        return leadIds;
     }
 }

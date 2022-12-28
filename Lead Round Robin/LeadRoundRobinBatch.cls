@@ -39,6 +39,7 @@ global without sharing class LeadRoundRobinBatch implements Database.Batchable<s
             if(l.Lead_Owner_Type__c != null){
                 leadOwnerTypeToUsers.get(l.Lead_Owner_Type__c).sort(); //should be l.LOB
                 l.OwnerId = leadOwnerTypeToUsers.get(l.Lead_Owner_Type__c).get(0).ownerId;
+                leadOwnerTypeToUsers.get(l.Lead_Owner_Type__c).get(0).leadsCount++;
             }
         }
     }

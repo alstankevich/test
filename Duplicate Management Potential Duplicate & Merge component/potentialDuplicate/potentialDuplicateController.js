@@ -47,7 +47,8 @@
         const action = component.get("c.mergeLeadDuplicates");
         action.setParams({
             "recordId": component.get("v.recordId"),
-            "masterId": component.get("v.masterId")
+            "masterId": component.get("v.masterId"),
+            "duplicateLeads": component.get("v.leads")
         });
         action.setCallback(this, function (response) {
             const state = response.getState();

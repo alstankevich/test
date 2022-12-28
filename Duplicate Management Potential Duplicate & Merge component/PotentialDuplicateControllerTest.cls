@@ -44,7 +44,7 @@ public class PotentialDuplicateControllerTest {
 
         Test.stopTest();
 
-        System.assertEquals(1, duplicateLeads.size());
+        System.assertEquals(2, duplicateLeads.size());
         System.assertEquals(masterLead.Id, duplicateLeads[0].Id);
     }
 
@@ -76,7 +76,7 @@ public class PotentialDuplicateControllerTest {
         insert lead;
 
         Test.startTest();
-        List<Lead> leads = PotentialDuplicateController.getSObjectRecordByIdWithAllAvailableFields(Lead.class.getName(), lead.Id);
+        List<Lead> leads = PotentialDuplicateController.getSObjectRecordByIdWithAllAvailableFields(Lead.class.getName(), lead.Id, null);
 
         Test.stopTest();
 
@@ -100,6 +100,10 @@ public class PotentialDuplicateControllerTest {
         duplicateLead.Phone = String.valueOf(getRandomIntegerWithLimit(100000000));
         duplicateLead.Email = getRandomEmail().toLowerCase();
 
+        List<Lead> leads = new List<Lead>();
+        leads.add(masterLead);
+        leads.add(duplicateLead);
+
         insert new List<Lead>{
                 masterLead, duplicateLead
         };
@@ -111,7 +115,7 @@ public class PotentialDuplicateControllerTest {
         insert duplicateLeadTask;
 
         Test.startTest();
-        PotentialDuplicateController.mergeLeadDuplicates(duplicateLead.Id, masterLead.Id);
+        PotentialDuplicateController.mergeLeadDuplicates(duplicateLead.Id, masterLead.Id, leads);
 
         Test.stopTest();
 
@@ -136,10 +140,13 @@ public class PotentialDuplicateControllerTest {
         masterLead.Potential_Duplicate__c = true;
         insert masterLead;
 
+        List<Lead> leads = new List<Lead>();
+        leads.add(masterLead);
+
         Boolean exceptionOccurred = false;
         Test.startTest();
         try {
-            PotentialDuplicateController.mergeLeadDuplicates(masterLead.Id, masterLead.Id);
+            PotentialDuplicateController.mergeLeadDuplicates(masterLead.Id, masterLead.Id, leads);
         } catch (Exception e) {
             System.debug(e.getMessage());
             exceptionOccurred = true;

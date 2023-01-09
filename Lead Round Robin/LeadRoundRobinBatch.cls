@@ -104,6 +104,7 @@ global without sharing class LeadRoundRobinBatch implements Database.Batchable<s
                 SELECT OwnerId, COUNT(Id) leadCount
                 FROM Lead
                 WHERE OwnerId IN :usersMap.keySet()
+                AND (Status = 'New' OR Status = 'Contacted' OR Status = 'Open - Not Contacted')
                 GROUP BY OwnerId
         ];
 //        AND Status = 'New'                             //TBD

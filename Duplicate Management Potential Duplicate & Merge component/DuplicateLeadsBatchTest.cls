@@ -33,6 +33,7 @@ public class DuplicateLeadsBatchTest {
                 Status = 'Open - Not Contacted',
                 Website = 'www.test.com',
                 Company = 'Test Company',
+                Phone = '89237409234',
                 Primary_Product_of_Interest__c = 'TestProduct',
                 RecordTypeId = BUSINESS_LEAD_RECORD_TYPE
         );

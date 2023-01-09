@@ -8,7 +8,8 @@ global without sharing class LeadRoundRobinBatch implements Database.Batchable<s
 
     global Database.QueryLocator start(Database.BatchableContext BC) {
         List<Id> leadIds = this.leadsIdsToProcess;
-        String query = 'SELECT Id, Status, Lead_Owner_Type__c FROM Lead WHERE Id IN :leadIds';
+        List<String> allowedStatuses = new List<String>{'New', 'Contacted', 'Open - Not Contacted'};
+        String query = 'SELECT Id, Status, Lead_Owner_Type__c FROM Lead WHERE Id IN :leadIds AND Status IN :allowedStatuses';
         return Database.getQueryLocator(query);
     }
 

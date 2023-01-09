@@ -17,18 +17,27 @@ private class LeadRoundRobinBatchTest {
         lead.Company = getRandomString();
         lead.Lead_Owner_Type__c = 'BciCapital-Franchise';
         lead.OwnerId = users.get(users.size()-1).Id;
+        lead.Email = 'test1@ema.il';
+        lead.Phone = '+20948324';
+        lead.Status = 'New';
 
         Lead lead2 = new Lead();
         lead2.LastName = getRandomString();
         lead2.Company = getRandomString();
         lead2.Lead_Owner_Type__c = 'BciCapital-Franchise';
         lead2.OwnerId = users.get(users.size()-1).Id;
+        lead2.Email = 'test2@ema.il';
+        lead2.Phone = '+20897430924';
+        lead2.Status = 'New';
 
         Lead lead3 = new Lead();
         lead3.LastName = getRandomString();
         lead3.Company = getRandomString();
         lead3.Lead_Owner_Type__c = 'BciCapital-Franchise';
         lead3.Title = 'test title';
+        lead3.Email = 'test3@ema.il';
+        lead3.Phone = '+534987594';
+        lead3.Status = 'New';
 
         Test.startTest();
         insert new List<Lead>{

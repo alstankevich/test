@@ -1,6 +1,7 @@
 global without sharing class LeadRoundRobinBatch implements Database.Batchable<sObject> {
 
     private List<Id> leadsIdsToProcess;
+    private final List<String> allowedStatuses = new List<String>{'Converted', 'Do Not Pursue'};
 
     global LeadRoundRobinBatch(List<Id> leadsIdsToProcess){
         this.leadsIdsToProcess = leadsIdsToProcess;
@@ -8,8 +9,8 @@ global without sharing class LeadRoundRobinBatch implements Database.Batchable<s
 
     global Database.QueryLocator start(Database.BatchableContext BC) {
         List<Id> leadIds = this.leadsIdsToProcess;
-        List<String> allowedStatuses = new List<String>{'New', 'Contacted', 'Open - Not Contacted'};
-        String query = 'SELECT Id, Status, Lead_Owner_Type__c FROM Lead WHERE Id IN :leadIds AND Status IN :allowedStatuses';
+        List<String> statusList = allowedStatuses;
+        String query = 'SELECT Id, Status, Lead_Owner_Type__c FROM Lead WHERE Id IN :leadIds AND Status IN :statusList';
         return Database.getQueryLocator(query);
     }
 
@@ -100,14 +101,14 @@ global without sharing class LeadRoundRobinBatch implements Database.Batchable<s
     }
 
     private AggregateResult[] getGroupedLeads(Map<Id, User> usersMap) {
+        List<String> statusList = allowedStatuses;
         AggregateResult[] groupedLeads = [
                 SELECT OwnerId, COUNT(Id) leadCount
                 FROM Lead
                 WHERE OwnerId IN :usersMap.keySet()
-                AND (Status = 'New' OR Status = 'Contacted' OR Status = 'Open - Not Contacted')
+                AND Status IN :statusList
                 GROUP BY OwnerId
         ];
-//        AND Status = 'New'                             //TBD
         System.debug(groupedLeads);
         return groupedLeads;
     }

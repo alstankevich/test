@@ -10,7 +10,7 @@ global without sharing class LeadRoundRobinBatch implements Database.Batchable<s
     global Database.QueryLocator start(Database.BatchableContext BC) {
         List<Id> leadIds = this.leadsIdsToProcess;
         List<String> statusList = allowedStatuses;
-        String query = 'SELECT Id, Status, Lead_Owner_Type__c FROM Lead WHERE Id IN :leadIds AND Status IN :statusList';
+        String query = 'SELECT Id, Status, Lead_Owner_Type__c FROM Lead WHERE Id IN :leadIds AND Status NOT IN :statusList';
         return Database.getQueryLocator(query);
     }
 
@@ -106,7 +106,7 @@ global without sharing class LeadRoundRobinBatch implements Database.Batchable<s
                 SELECT OwnerId, COUNT(Id) leadCount
                 FROM Lead
                 WHERE OwnerId IN :usersMap.keySet()
-                AND Status IN :statusList
+                AND Status IN NOT :statusList
                 GROUP BY OwnerId
         ];
         System.debug(groupedLeads);

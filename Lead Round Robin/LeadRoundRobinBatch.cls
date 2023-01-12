@@ -106,7 +106,7 @@ global without sharing class LeadRoundRobinBatch implements Database.Batchable<s
                 SELECT OwnerId, COUNT(Id) leadCount
                 FROM Lead
                 WHERE OwnerId IN :usersMap.keySet()
-                AND Status IN NOT :statusList
+                AND Status NOT IN :statusList
                 GROUP BY OwnerId
         ];
         System.debug(groupedLeads);

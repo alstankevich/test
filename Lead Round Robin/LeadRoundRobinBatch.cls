@@ -10,7 +10,8 @@ global without sharing class LeadRoundRobinBatch implements Database.Batchable<s
     global Database.QueryLocator start(Database.BatchableContext BC) {
         List<Id> leadIds = this.leadsIdsToProcess;
         List<String> statusList = allowedStatuses;
-        String query = 'SELECT Id, Status, Lead_Owner_Type__c FROM Lead WHERE Id IN :leadIds AND Status NOT IN :statusList';
+        System.debug(leadsIdsToProcess);
+        String query = 'SELECT Id, Status, UltiPro_Team__c, UltiPro_LOB__c FROM Lead WHERE Id IN :leadIds AND Status NOT IN :statusList AND (UltiPro_Team__c != NULL OR UltiPro_LOB__c != NULL)';
         return Database.getQueryLocator(query);
     }
 
@@ -29,19 +30,26 @@ global without sharing class LeadRoundRobinBatch implements Database.Batchable<s
     private Set<String> getOwnerTypes(List<Lead> leadsToRoundRobin) {
         Set<String> ownerTypes = new Set<String>();
         for (Lead l : leadsToRoundRobin) {
-            if (l.Lead_Owner_Type__c != null) {
-                ownerTypes.add(l.Lead_Owner_Type__c);
+            if (l.UltiPro_Team__c != null) {
+                ownerTypes.add(l.UltiPro_Team__c);
+            }else if(l.UltiPro_LOB__c != null){
+                ownerTypes.add(l.UltiPro_LOB__c);
             }
+
         }
         return ownerTypes;
     }
 
     private void roundRobinLeads(List<Lead> leadsToRoundRobin, Map<String, List<RRUser>> leadOwnerTypeToUsers) {
         for (Lead l : leadsToRoundRobin) {
-            if(l.Lead_Owner_Type__c != null){
-                leadOwnerTypeToUsers.get(l.Lead_Owner_Type__c).sort(); //should be l.LOB
-                l.OwnerId = leadOwnerTypeToUsers.get(l.Lead_Owner_Type__c).get(0).ownerId;
-                leadOwnerTypeToUsers.get(l.Lead_Owner_Type__c).get(0).leadsCount++;
+            if(l.UltiPro_Team__c != null){
+                leadOwnerTypeToUsers.get(l.UltiPro_Team__c).sort();
+                l.OwnerId = leadOwnerTypeToUsers.get(l.UltiPro_Team__c).get(0).ownerId;
+                leadOwnerTypeToUsers.get(l.UltiPro_Team__c).get(0).leadsCount++;
+            }else if(l.UltiPro_LOB__c != null){
+                leadOwnerTypeToUsers.get(l.UltiPro_LOB__c).sort();
+                l.OwnerId = leadOwnerTypeToUsers.get(l.UltiPro_LOB__c).get(0).ownerId;
+                leadOwnerTypeToUsers.get(l.UltiPro_LOB__c).get(0).leadsCount++;
             }
         }
     }
@@ -50,19 +58,19 @@ global without sharing class LeadRoundRobinBatch implements Database.Batchable<s
         Map<String, List<RRUser>> leadTypeToUsers = new Map<String, List<RRUser>>();
         System.debug(groupedLeads);
         for (AggregateResult ar : groupedLeads) {
-            String userType = usersMap.get((Id) ar.get('OwnerId')).Type__c;  //TBD
+            String userTeam = usersMap.get((Id) ar.get('OwnerId')).UltiPro_Team__c;
+            String userLOB = usersMap.get((Id) ar.get('OwnerId')).UltiPro_LOB__c;
 
             RRUser usr = new RRUser(
                     (Id) ar.get('OwnerId'),
                     (Integer) ar.get('leadCount')
             );
 
-            if (leadTypeToUsers.containsKey(userType)) {
-                leadTypeToUsers.get(userType).add(usr);
-            } else {
-                leadTypeToUsers.put(userType, new List<RRUser>{
-                        usr
-                });
+            if(userTeam != null){
+                leadTypeToUsers = processLeadTypeToUsers(leadTypeToUsers, userTeam, usr);
+            }
+            if(userLOB != null){
+                leadTypeToUsers = processLeadTypeToUsers(leadTypeToUsers, userLOB, usr);
             }
         }
 
@@ -71,17 +79,27 @@ global without sharing class LeadRoundRobinBatch implements Database.Batchable<s
         return leadTypeToUsers;
     }
 
+    private Map<String, List<RRUser>> processLeadTypeToUsers(Map<String, List<RRUser>> leadTypeToUsers, String typeVal, RRUser usr) {
+        if (leadTypeToUsers.containsKey(typeVal)) {
+            leadTypeToUsers.get(typeVal).add(usr);
+        } else {
+            leadTypeToUsers.put(typeVal, new List<RRUser>{
+                    usr
+            });
+        }
+        return leadTypeToUsers;
+    }
+
     private void addUsersWithNoLeads(Map<Id, User> usersMap, Map<String, List<RRUser>> leadTypeToUsers) {
         for (Id usrId : usersMap.keySet()) {
             Boolean userAdded = isUserAdded(leadTypeToUsers, usrId);
             if (!userAdded) {
                 RRUser usr = new RRUser(usrId, 0);
-                if (leadTypeToUsers.containsKey(usersMap.get(usrId).Type__c)) {
-                    leadTypeToUsers.get(usersMap.get(usrId).Type__c).add(usr);
-                } else {
-                    leadTypeToUsers.put(usersMap.get(usrId).Type__c, new List<RRUser>{
-                            usr
-                    });
+                if(usersMap.get(usrId).UltiPro_Team__c != null){
+                    leadTypeToUsers = processLeadTypeToUsers(leadTypeToUsers, usersMap.get(usrId).UltiPro_Team__c, usr);
+                }
+                if(usersMap.get(usrId).UltiPro_LOB__c != null){
+                    leadTypeToUsers = processLeadTypeToUsers(leadTypeToUsers, usersMap.get(usrId).UltiPro_LOB__c, usr);
                 }
             }
         }
@@ -124,9 +142,9 @@ global without sharing class LeadRoundRobinBatch implements Database.Batchable<s
 
     private Map<Id, User> getUsersMap(Set<String> ownerTypes) {
         Map<Id, User> usersMap = new Map<Id, User>([
-                SELECT Id, Type__c                    //TBD
+                SELECT Id, UltiPro_Team__c, UltiPro_LOB__c
                 FROM User
-                WHERE Type__c IN :ownerTypes   //TBD
+                WHERE (UltiPro_Team__c IN :ownerTypes OR UltiPro_LOB__c IN :ownerTypes)
                 AND IsActive = true
         ]);
         return usersMap;

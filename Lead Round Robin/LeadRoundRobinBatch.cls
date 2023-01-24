@@ -31,11 +31,21 @@ global without sharing class LeadRoundRobinBatch implements Database.Batchable<s
         Set<String> ownerTypes = new Set<String>();
         for (Lead l : leadsToRoundRobin) {
             if (l.UltiPro_Team__c != null) {
-                ownerTypes.add(l.UltiPro_Team__c);
+                ownerTypes = processOwnerTypeString(l.UltiPro_Team__c, ownerTypes);
             }else if(l.UltiPro_LOB__c != null){
-                ownerTypes.add(l.UltiPro_LOB__c);
+                ownerTypes = processOwnerTypeString(l.UltiPro_LOB__c, ownerTypes);
             }
 
+        }
+        return ownerTypes;
+    }
+
+    private Set<String> processOwnerTypeString(String ownerTypeString, Set<String> ownerTypes) {
+        List<String> types = ownerTypeString.split(',');
+        for (String type : types) {
+            if (type != '') {
+                ownerTypes.add(type);
+            }
         }
         return ownerTypes;
     }
@@ -43,15 +53,36 @@ global without sharing class LeadRoundRobinBatch implements Database.Batchable<s
     private void roundRobinLeads(List<Lead> leadsToRoundRobin, Map<String, List<RRUser>> leadOwnerTypeToUsers) {
         for (Lead l : leadsToRoundRobin) {
             if(l.UltiPro_Team__c != null){
-                leadOwnerTypeToUsers.get(l.UltiPro_Team__c).sort();
-                l.OwnerId = leadOwnerTypeToUsers.get(l.UltiPro_Team__c).get(0).ownerId;
-                leadOwnerTypeToUsers.get(l.UltiPro_Team__c).get(0).leadsCount++;
+                String mostAvailableType = getMostAvailableType(l.UltiPro_Team__c, leadOwnerTypeToUsers);
+
+                leadOwnerTypeToUsers.get(mostAvailableType).sort();
+                l.OwnerId = leadOwnerTypeToUsers.get(mostAvailableType).get(0).ownerId;
+                leadOwnerTypeToUsers.get(mostAvailableType).get(0).leadsCount++;
             }else if(l.UltiPro_LOB__c != null){
-                leadOwnerTypeToUsers.get(l.UltiPro_LOB__c).sort();
-                l.OwnerId = leadOwnerTypeToUsers.get(l.UltiPro_LOB__c).get(0).ownerId;
-                leadOwnerTypeToUsers.get(l.UltiPro_LOB__c).get(0).leadsCount++;
+                String mostAvailableType = getMostAvailableType(l.UltiPro_LOB__c, leadOwnerTypeToUsers);
+
+                leadOwnerTypeToUsers.get(mostAvailableType).sort();
+                l.OwnerId = leadOwnerTypeToUsers.get(mostAvailableType).get(0).ownerId;
+                leadOwnerTypeToUsers.get(mostAvailableType).get(0).leadsCount++;
             }
         }
+    }
+
+    private String getMostAvailableType(String typesString, Map<String, List<RRUser>> leadOwnerTypeToUsers) {
+        List<String> types = typesString.split(',');
+        String mostAvailableType = types.get(0);
+        leadOwnerTypeToUsers.get(mostAvailableType).sort();
+        Integer mostAvailableLeadsCount = leadOwnerTypeToUsers.get(mostAvailableType).get(0).leadsCount;
+
+        for (String type : types) {
+            leadOwnerTypeToUsers.get(type).sort();
+
+            if (leadOwnerTypeToUsers.get(type).get(0).leadsCount < mostAvailableLeadsCount) {
+                mostAvailableType = type;
+                mostAvailableLeadsCount = leadOwnerTypeToUsers.get(type).get(0).leadsCount;
+            }
+        }
+        return mostAvailableType;
     }
 
     private Map<String, List<RRUser>> getLeadOwnerTypeToUsers(AggregateResult[] groupedLeads, Map<Id, User> usersMap) {

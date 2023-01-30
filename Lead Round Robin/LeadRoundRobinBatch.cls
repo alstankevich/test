@@ -177,6 +177,7 @@ global without sharing class LeadRoundRobinBatch implements Database.Batchable<s
                 FROM User
                 WHERE (UltiPro_Team__c IN :ownerTypes OR UltiPro_LOB__c IN :ownerTypes)
                 AND IsActive = true
+                AND Do_Not_Receive_Leads__c = false
         ]);
         return usersMap;
     }

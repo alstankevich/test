@@ -62,6 +62,7 @@ global without sharing class DuplicateLeadsBatch implements Database.Batchable<s
                 SELECT Id, OwnerId
                 FROM Lead
                 WHERE Id IN :duplicatedLeadsIds
+                AND Merge_Process_Done__c = false
                 ORDER BY CreatedDate DESC
         ];
         return leadsToProcess;

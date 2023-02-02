@@ -28,6 +28,7 @@ public without sharing class PotentialDuplicateController {
                         SELECT Id, Name, Title, Company, Phone, Email, Status, Potential_Duplicate__c
                         FROM Lead
                         WHERE Id IN :duplicateLeadIds 
+			AND Merge_Process_Done__c = false
                 ];
                 //AND Id != :recordId
             }

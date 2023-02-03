@@ -11,10 +11,10 @@ public without sharing class PotentialDuplicateController {
                     FROM DuplicateRecordItem
                     WHERE RecordId = :recordId
             ]) {
-                duplicateRecordSetIds.add(duplicateItem.DuplicateRecordSetId);
+                duplicateRecordSetIds.add(duplicateItem.DuplicateRecordSetId); //finding id of parent(DuplicateRecordSet) of duplicate records
             }
 
-            for (DuplicateRecordItem duplicateRecordItem : [
+            for (DuplicateRecordItem duplicateRecordItem : [ //get all duplicates for this parent
                     SELECT Id, RecordId
                     FROM DuplicateRecordItem
                     WHERE DuplicateRecordSetId IN :duplicateRecordSetIds
@@ -24,11 +24,11 @@ public without sharing class PotentialDuplicateController {
                 }
             }
             if (!duplicateLeadIds.isEmpty()) {
-                duplicateLeads = [
+                duplicateLeads = [ //get leads itself
                         SELECT Id, Name, Title, Company, Phone, Email, Status, Potential_Duplicate__c
                         FROM Lead
-                        WHERE Id IN :duplicateLeadIds 
-			AND Merge_Process_Done__c = false
+                        WHERE Id IN :duplicateLeadIds
+                    	AND Merge_Process_Done__c = false
                 ];
                 //AND Id != :recordId
             }
@@ -37,7 +37,7 @@ public without sharing class PotentialDuplicateController {
     }
 
     @AuraEnabled
-    public static void setPotentialDuplicateFalse(Id recordId) {
+    public static void setPotentialDuplicateFalse(Id recordId) { //if lead manually selected as non duplicate
         if (recordId != null) {
             Lead lead = [SELECT Id, Name, Potential_Duplicate__c FROM Lead WHERE Id = :recordId];
             lead.Potential_Duplicate__c = false;
@@ -52,8 +52,8 @@ public without sharing class PotentialDuplicateController {
         List<Lead> duplicatesLeads = getDuplicates(masterId, duplicateLeads);
         Set<Id> duplicateLeadIds = getDuplicateLeadIds(duplicatesLeads);
 
-        List<Lead> duplicates = getSObjectRecordByIdWithAllAvailableFields(Lead.class.getName(), null, duplicateLeadIds);
-        List<Lead> masterLeads = getSObjectRecordByIdWithAllAvailableFields(Lead.class.getName(), masterId, null);
+        List<Lead> duplicates = getSObjectRecordByIdWithAllAvailableFields(Lead.class.getName(), null, duplicateLeadIds); //will be all duplicates with all fields inside
+        List<Lead> masterLeads = getSObjectRecordByIdWithAllAvailableFields(Lead.class.getName(), masterId, null); //will be one master record with all fields inside
 
         if (!duplicates.isEmpty() && !masterLeads.isEmpty()) {
             Lead master = masterLeads.get(0);
@@ -63,15 +63,15 @@ public without sharing class PotentialDuplicateController {
                 Map<String, Object> duplicateLeadValues = duplicate.getPopulatedFieldsAsMap();
                 for (String field : duplicateLeadValues.keySet()) {
                     if (master.get(field) == null && fields.get(field).getDescribe().isUpdateable()) {
-                        master.put(field, duplicateLeadValues.get(field));
+                        master.put(field, duplicateLeadValues.get(field)); //update master with value from duplicate if it's not populated on master
                     }
                 }
             }
             master.Potential_Duplicate__c = false;
             //master.Merge_Process_Done__c = true;
-            List<Database.MergeResult> mergeResults = Database.merge(master, duplicatesLeads, false);
+            List<Database.MergeResult> mergeResults = Database.merge(master, duplicatesLeads, false); //perform merge(no more than 3 records)
 
-            for(Database.MergeResult mergeResult : mergeResults){
+            for(Database.MergeResult mergeResult : mergeResults){ //processing merge result if any error
                 if (mergeResult.isSuccess()) {
                     System.debug('Master record ID: ' + mergeResult.getId());
 
@@ -88,13 +88,13 @@ public without sharing class PotentialDuplicateController {
                     throw new AuraHandledException('Something went wrong: ' + errorMessage);
                 }
             }
-        } else {
+        } else { //processing non merge errors
             throw new AuraHandledException('Unfortunately, there was a problem. Please try again. ' +
                     'If the problem continues, get in touch with your administrator!');
         }
     }
 
-    @TestVisible
+    @TestVisible //method to fetch records with ALL fields from it
     private static List<SObject> getSObjectRecordByIdWithAllAvailableFields(String objectAPIName, String recordId, Set<Id> objectIds) {
         Map<String, Schema.SObjectType> schemaMap = Schema.getGlobalDescribe();
         Map<String, Schema.SObjectField> fieldMap = schemaMap.get(objectAPIName).getDescribe().fields.getMap();

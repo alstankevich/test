@@ -32,7 +32,7 @@ global without sharing class DuplicateLeadsBatch implements Database.Batchable<s
         List<Lead> leadsToUpdate = new List<Lead>();
         for (Id setId : setIdToLeads.keySet()) {
             for (Integer i = 0; i < setIdToLeads.get(setId).size() - 1; i++) {
-//                    setIdToLeads.get(setId).get(i).Potential_Duplicate__c = true;
+                setIdToLeads.get(setId).get(i).Potential_Duplicate__c = true;
                 setIdToLeads.get(setId).get(i).OwnerId = setIdToLeads.get(setId).get(setIdToLeads.get(setId).size()).OwnerId;
                 leadsToUpdate.add(setIdToLeads.get(setId).get(i));
             }

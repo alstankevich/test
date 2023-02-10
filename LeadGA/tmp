@@ -6,3 +6,19 @@ req.setBody('{"client_id":GA_ID,"user_id":LEAD_ID,"events":[{"name":"lead_conver
 
 Google Analytics - Measurement Protocol
 https://google-analytics.com
+
+
+List<Id> leadsIdsToProcess = new List<Id>();
+for(String leadId : Trigger.newMap){
+    if(
+        Trigger.oldMap.containsKey(leadId) 
+        && !Trigger.oldMap.get(leadId).IsConverted
+        && Trigger.newMap.get(leadId).IsConverted
+    ){
+        leadsIdsToProcess.add(leadId);
+    }
+}
+
+if(!leadsIdsToProcess.isEmpty()){
+    Database.executeBatch(new LeadGABatch(leadsIdsToProcess), 1); //should always be 1 in chunk to process http requests
+}

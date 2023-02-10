@@ -1,0 +1,8 @@
+req.setMethod('POST');
+req.setEndpoint('https://google-analytics.com/mp/collect?api_secret=3HbKKN2wTYfZ9lSk4JwOg&measurement_id=G-JVNMJBCQKH');
+req.setHeader('Content-Type','application/json');
+req.setBody('{"client_id":GA_ID,"user_id":LEAD_ID,"events":[{"name":"lead_conversion","params":{}}]}');
+
+
+Google Analytics - Measurement Protocol
+https://google-analytics.com

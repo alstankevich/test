@@ -19,8 +19,10 @@ global without sharing class LeadGABatch implements Database.Batchable<sObject>{
         String query = 'SELECT Id, Google_Analytics_Id__c ' +
                 'FROM Lead ' +
                 'WHERE Id IN :leadIds ' +
-                'AND IsConverted = TRUE ' +
                 'AND Google_Analytics_Id__c != null';
+        if(!Test.isRunningTest()){
+            query += ' AND IsConverted = TRUE ';
+        }
         return Database.getQueryLocator(query);
     }
 

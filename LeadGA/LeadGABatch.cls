@@ -1,4 +1,4 @@
-global without sharing class LeadGABatch implements Database.Batchable<sObject>{
+global without sharing class LeadGABatch implements Database.Batchable<sObject>, Database.AllowsCallouts{
     private List<Id> leadsIdsToProcess;
     private GA_Setup__c apiSetup;
     private final String GA_ID = 'GA_ID';

@@ -22,3 +22,6 @@ for(String leadId : Trigger.newMap){
 if(!leadsIdsToProcess.isEmpty()){
     Database.executeBatch(new LeadGABatch(leadsIdsToProcess), 1); //should always be 1 in chunk to process http requests
 }
+
+
+?api_secret=3HbKKN2wTY-fZ9ISk4JwOg&measurement_id=G-JVNMJBCQKH
